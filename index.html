@@ -1,0 +1,202 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sales Visit Tracker</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; }
+    .container { max-width: 800px; margin-top: 30px; }
+    .form-section { background: #fff; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px #ccc; }
+    .form-title { margin-bottom: 20px; }
+    .status-indicator { height: 10px; width: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .online { background-color: #28a745; }
+    .offline { background-color: #dc3545; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2 class="text-center">🧾 Sales Visit Log</h2>
+
+  <!-- Connection + Sheet Status -->
+  <div class="d-flex justify-content-between align-items-center my-2">
+    <div><span id="connectionStatus" class="status-indicator"></span><span id="networkText">Checking connection...</span></div>
+    <div><span class="badge bg-info text-dark">Auto-Sync to Google Sheet</span></div>
+  </div>
+
+  <!-- Last Entry -->
+  <div id="last-entry" class="alert alert-warning">Loading last entry...</div>
+
+  <!-- Form -->
+  <form id="salesForm" class="form-section">
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>Date</label>
+        <input type="date" name="date" id="date" class="form-control" required>
+      </div>
+      <div class="col-md-6">
+        <label>Firm Name</label>
+        <input type="text" name="firmName" class="form-control" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>Primary Category</label>
+        <input type="text" name="primaryCategory" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label>Contact Person</label>
+        <input type="text" name="contactPerson" class="form-control" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>Rank</label>
+        <input type="text" name="rank" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label>Contact No.</label>
+        <input type="tel" name="contactNo" class="form-control" pattern="[0-9]{10}" required>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>Email ID</label>
+        <input type="email" name="emailId" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label>Area</label>
+        <input type="text" name="area" class="form-control">
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>City</label>
+        <input type="text" name="city" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label>Address</label>
+        <div class="input-group">
+          <input type="text" name="address" id="address" class="form-control" required>
+          <button type="button" class="btn btn-outline-secondary" onclick="getLocation()">📍Auto</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>Purpose</label>
+        <input type="text" name="purpose" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label>Reference</label>
+        <input type="text" name="reference" class="form-control">
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label>Remark</label>
+      <textarea name="remark" class="form-control" rows="3"></textarea>
+    </div>
+
+    <div class="text-center">
+      <button type="submit" class="btn btn-primary w-50">✅ Submit Entry</button>
+    </div>
+  </form>
+
+  <!-- Toast -->
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="successToast" class="toast align-items-center text-bg-success" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">✅ Entry submitted successfully!</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const scriptURL = "https://script.google.com/macros/s/AKfycbyVGFnzCWjo1ooqHS_q8-lIhP1BGzoUJWNZRLcPgQka5j7WfkrQ8a7voqhn9geR7_x5dg/exec";
+const form = document.getElementById("salesForm");
+document.getElementById("date").valueAsDate = new Date();
+
+function checkConnection() {
+  fetch(scriptURL)
+    .then(res => res.json())
+    .then(data => {
+      if (data.status === "success" || data.status === "empty") {
+        document.getElementById("connectionStatus").className = "status-indicator online";
+        document.getElementById("networkText").textContent = "Connected";
+      } else throw Error();
+    })
+    .catch(() => {
+      document.getElementById("connectionStatus").className = "status-indicator offline";
+      document.getElementById("networkText").textContent = "Disconnected";
+    });
+}
+
+function getLocation() {
+  if (!navigator.geolocation) {
+    alert("Geolocation not supported");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(async position => {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
+    const data = await res.json();
+    document.getElementById("address").value = data.display_name || "Location found";
+  }, () => alert("Location fetch failed"));
+}
+
+window.addEventListener("DOMContentLoaded", async () => {
+  checkConnection();
+  try {
+    const res = await fetch(scriptURL);
+    const data = await res.json();
+    if (data.status === "success") {
+      const e = data.lastEntry;
+      document.getElementById("last-entry").innerText =
+        `🕓 Last Entry:
+Firm: ${e.firmName}
+City: ${e.city}
+Person: ${e.contactPerson}
+Purpose: ${e.purpose}
+Remark: ${e.remark}`;
+    } else {
+      document.getElementById("last-entry").innerText = "No previous entry found.";
+    }
+  } catch {
+    document.getElementById("last-entry").innerText = "❌ Could not fetch last entry.";
+  }
+});
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const formData = new FormData(form);
+  try {
+    const res = await fetch(scriptURL, { method: "POST", body: formData });
+    const result = await res.json();
+    if (result.status === "success") {
+      new bootstrap.Toast(document.getElementById("successToast")).show();
+      form.reset();
+      document.getElementById("date").valueAsDate = new Date();
+    } else {
+      alert("Error: " + result.message);
+    }
+  } catch {
+    alert("Submission failed. Try again later.");
+  }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
